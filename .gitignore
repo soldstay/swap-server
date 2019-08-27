@@ -1,0 +1,7 @@
+node_modules
+.env
+db
+config.js
+accepted.txt
+proposal.txt
+
