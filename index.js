@@ -22,7 +22,7 @@ wss.on("connection", function connection(ws) {
   app.set("ws", ws);
 });
 
-const bc = new Core(config.bitcoind);
+const bc = new Core(config.elementsd);
 
 const binance = new WebSocket(
   "wss://stream.binance.com:9443/ws/btcusdt@ticker"
@@ -49,7 +49,15 @@ app.get("/balance", async (req, res) => {
 const createProposal = (a1, v1, a2, v2) =>
   new Promise((resolve, reject) => {
     const spawn = require("child_process").spawn;
-    const proc = spawn("liquidswap-cli", ["propose", a1, v1, a2, v2]);
+    const proc = spawn("liquidswap-cli", [
+      "-c",
+      config.conf,
+      "propose",
+      a1,
+      v1,
+      a2,
+      v2
+    ]);
 
     proc.stdout.on("data", data => {
       fs.writeFile("proposal.txt", data.toString(), function(err) {
@@ -64,14 +72,17 @@ const createProposal = (a1, v1, a2, v2) =>
     proc.stderr.on("error", err => {
       reject(err.toString());
     });
-
-    setTimeout(() => reject("timeout", proc), 2000);
   });
 
 const getInfo = () =>
   new Promise((resolve, reject) => {
     const spawn = require("child_process").spawn;
-    const proc = spawn("liquidswap-cli", ["info", "proposal.txt"]);
+    const proc = spawn("liquidswap-cli", [
+      "-c",
+      config.conf,
+      "info",
+      "proposal.txt"
+    ]);
 
     proc.stdout.on("data", data => {
       resolve(data.toString());
@@ -124,7 +135,12 @@ app.post("/acceptance", async (req, res) => {
       let info = JSON.parse(
         await new Promise((resolve, reject) => {
           const spawn = require("child_process").spawn;
-          const proc = spawn("liquidswap-cli", ["info", "accepted.txt"]);
+          const proc = spawn("liquidswap-cli", [
+            "-c",
+            config.conf,
+            "info",
+            "accepted.txt"
+          ]);
 
           proc.stdout.on("data", data => {
             resolve(data.toString());
@@ -144,6 +160,7 @@ app.post("/acceptance", async (req, res) => {
       req.log.info("accepted", info, rate, asset);
 
       db.put(time, JSON.stringify({ text, info, rate, asset }));
+      l({ text, info, rate, asset });
 
       res.send({ info, rate });
     } catch (e) {
@@ -213,6 +230,8 @@ const checkQueue = async () => {
         } catch (e) {
           l(e);
           if (e.includes("Unexpected fees")) db.del(tx.key);
+          if (e.includes("unsigned inputs")) db.del(tx.key);
+          if (e.includes("insufficient fee")) db.del(tx.key);
         }
       }
     });
@@ -250,6 +269,8 @@ const finalize = text => {
   return new Promise((resolve, reject) => {
     const spawn = require("child_process").spawn;
     const proc = spawn("liquidswap-cli", [
+      "-c",
+      config.conf,
       "finalize",
       "accepted.txt",
       "--send"
