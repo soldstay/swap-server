@@ -16,7 +16,7 @@
     "nodemon": "^1.19.1",
     "pino-colada": "^1.4.5",
     "prettier": "^1.18.2",
-    "ws": "^7.1.2"
+    "ws": "^7.4.6"
   },
   "dependencies": {
     "bitcoin-core": "^2.2.0",
